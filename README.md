@@ -90,6 +90,20 @@ Protocol for handling incoming code review feedback with technical rigor.
 - No performative agreement ("great point!", "you're absolutely right!")
 - Fix items one at a time, test each
 
+### `fullstack-pr-qa`
+Runs manual browser QA of any web project against any environment and writes a screenshot-backed report.
+
+**Usage:** `/fullstack-pr-qa projeto=<path> plano=<file|text|pr:N|linear:ID> auth=@<profile> env=<localhost|staging|prod|url>`
+
+- Project-agnostic: everything stack-specific comes from the four parameters or the project's own `qa.config.json`
+- Drives a real Chrome through the [agent-browser](https://agent-browser.dev) CLI, in an isolated session per project + environment
+- Credentials always resolve to an encrypted agent-browser auth vault profile — never a file, a log, or the report
+- Captures accessibility snapshots, network status codes and screenshots as evidence for every user story
+- Writes the report to `<project-root>/qa-analyze/<slug>/qa-results.md`
+- Separates product defects (FAIL) from environment blockers (BLOCKED), so deploy lag never reads as a bug
+
+**Requires:** `agent-browser` on `PATH` (`brew install agent-browser` or `npm i -g agent-browser`, then `agent-browser install`).
+
 ---
 
 ## Agents
