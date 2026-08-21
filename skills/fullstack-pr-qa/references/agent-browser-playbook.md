@@ -4,11 +4,13 @@ The command loop and the traps, for driving a QA run with the `agent-browser` CL
 command below is run through the wrapper so it lands in the run's session:
 
 ```
-bash ~/.claude/skills/fullstack-pr-qa/scripts/qa-browser.sh <report-dir> <args...>
+bash <skill-dir>/scripts/qa-browser.sh <report-dir> <args...>
 ```
 
-Shortened to `qa-browser <args>` in this document. `<report-dir>` is the
-`qa-analyze/<slug>/` folder that `scaffold-qa.sh` printed.
+`<skill-dir>` is this skill's own directory — SKILL.md carries it as the already-expanded
+`${CLAUDE_SKILL_DIR}` value, so take it from there rather than hardcoding a path.
+`<report-dir>` is the `REPORT_DIR` that `scaffold-qa.sh` printed. Shortened to
+`qa-browser <args>` in the rest of this document.
 
 ## Load the CLI's own reference first
 
