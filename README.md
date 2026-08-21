@@ -93,9 +93,16 @@ Protocol for handling incoming code review feedback with technical rigor.
 ### `fullstack-pr-qa`
 Runs manual browser QA of any web project against any environment and writes a screenshot-backed report.
 
-**Usage:** `/fullstack-pr-qa projeto=<path> plano=<file|text|pr:N|linear:ID> auth=@<profile> env=<localhost|staging|prod|url>`
+**Usage:** `/fullstack-pr-qa [projeto] [plano] [auth] [ambiente]`
 
-- Project-agnostic: everything stack-specific comes from the four parameters or the project's own `qa.config.json`
+```
+/fullstack-pr-qa ~/dev/minha-app ./docs/plano-checkout.md @minha-app-staging staging
+/fullstack-pr-qa ~/dev/minha-app pr:42 env:QA_USER,QA_PASS localhost
+```
+
+- Four named positional arguments, declared in frontmatter and substituted into the skill body as `$projeto`, `$plano`, `$auth` and `$ambiente`; quote any value containing spaces
+- Runs as `context: fork` with `background: false` — the coordinator passes the whole context through those four arguments, and the skill returns a self-contained verdict
+- Project-agnostic: everything stack-specific comes from the four arguments or the project's own `qa.config.json`
 - Drives a real Chrome through the [agent-browser](https://agent-browser.dev) CLI, in an isolated session per project + environment
 - Credentials always resolve to an encrypted agent-browser auth vault profile — never a file, a log, or the report
 - Captures accessibility snapshots, network status codes and screenshots as evidence for every user story
