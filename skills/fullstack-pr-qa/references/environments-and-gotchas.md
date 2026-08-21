@@ -51,8 +51,9 @@ Everything project-specific the skill needs, so a run reduces to four parameters
 | `notes` | Free-text warnings the QA agent must read before interpreting results. |
 
 Absent the file: detect what you can (package manager, dev script, framework default port),
-state the inferences out loud, run with them, and offer to write the stub. Never create it
-silently.
+run with those inferences, and **list every one of them in the report**. Do not write the file
+— a QA run executes as a forked subagent with no user to confirm with, and creating project
+files is the coordinator's decision. Recommend the stub in the report instead.
 
 ## Bringing a local environment up
 

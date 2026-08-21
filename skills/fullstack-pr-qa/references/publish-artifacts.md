@@ -28,7 +28,7 @@ commit that lives on no branch.
 Run the bundled helper after capturing screenshots and confirming delivery:
 
 ```
-cd <projeto> && bash ~/.claude/skills/fullstack-pr-qa/scripts/publish-qa-images.sh \
+cd <projeto> && bash <skill-dir>/scripts/publish-qa-images.sh \
   qa-analyze/<slug>/screenshots <slug> [owner/repo]
 ```
 
