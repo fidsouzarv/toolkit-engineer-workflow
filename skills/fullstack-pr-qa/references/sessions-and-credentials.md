@@ -64,6 +64,12 @@ project, and must never be copied into `qa-analyze/`.
 
 ## Credentials — the vault
 
+**The vault is the only source of credentials, and it is always consulted first.** A run does
+not accept a password it was not asked for, does not read one from a project file, and does not
+silently proceed logged out. The cycle is: look the vault up → ask the user once if it is empty
+→ save → never ask again for that project+environment.
+
+
 `qa-auth.sh` normalizes the skill's `$3` into a vault profile. The vault is encrypted at rest
 with AES-256-GCM under `~/.agent-browser`; the key is auto-generated on the first `auth save`.
 To pin your own key (recommended on a shared machine), export it before the first save:
@@ -74,14 +80,37 @@ export AGENT_BROWSER_ENCRYPTION_KEY=$(openssl rand -hex 32)   # 64 hex chars, in
 
 Rotating that key makes previously saved profiles and states unreadable — save it once.
 
-### The four input forms for `$3`
+### The input forms for `$3`
 
 | Form | Behavior | When |
 |------|----------|------|
-| `@perfil` | Reuses an existing vault profile. Verified with `auth show`; fails loudly if absent. | **Preferred.** Nothing sensitive enters the conversation. |
-| `env:QA_USER,QA_PASS` | Reads both from the environment and saves the profile. | CI, or a shell that already exports them. |
-| `user:senha` | Saves a new profile named `qa-<projeto>-<ambiente>`. Needs the login URL as arg 4. | First run for an environment. **The password lands in the transcript** — say so once, then continue. |
-| `none` | No login step. | Public app or an already-restored session. |
+| *(empty)* or `auto` | **The default.** Looks for `qa-<projeto>-<ambiente>` in the vault. Found ⇒ `AUTH_PROFILE=`. Absent ⇒ `AUTH_MISSING=` on stdout, the project's other profiles as `CANDIDATE=` lines, **exit 3**. Creates nothing. | Every run after the first. Nothing sensitive in the invocation at all. |
+| `@perfil` | Reuses that exact profile. Verified with `auth show`; `AUTH_MISSING=` + exit 3 if absent. | Picking a specific role, or an environment whose profile does not follow the convention. |
+| `env:QA_USER,QA_PASS` | Reads both from the environment, then **saves** the profile. | CI, or a shell that already exports them. |
+| `user:senha` | **Saves** a new profile named `qa-<projeto>-<ambiente>`. Needs the login URL as arg 4. | The one-time answer to `AUTH_MISSING`. **The password lands in the transcript** — say so once, then continue. |
+| `none` | No login step. | An explicitly public app. **Never** a fallback for an empty vault. |
+
+### The discovery contract
+
+`qa-auth.sh` never blocks, never prompts and never invents. It answers with a profile or with a
+question for the caller to relay:
+
+```
+$ bash scripts/qa-auth.sh ~/dev/minha-app staging auto
+AUTH_MISSING=qa-minha-app-staging
+CANDIDATE=qa-minha-app-localhost e2e@minha-app.local http://localhost:3002/login
+CANDIDATE=qa-minha-app-localhost-atendente atendente@minha-app.local http://localhost:3002/login
+# exit 3
+```
+
+Exit 3 is the "ask the user" signal, and it is the *only* correct reaction to it. Running the
+plan without a login produces a report full of login screens; falling back to `none` produces
+the same thing while claiming it was intended.
+
+The naming convention `qa-<projeto>-<ambiente>` is what makes the next run silent, so keep it:
+save under the conventional name unless the user asked for a specific one. A second role for
+the same environment gets a suffix — `qa-minha-app-staging-atendente` — and is addressed with
+`@`, and it still shows up as a `CANDIDATE=` line for whoever asks later.
 
 The password always reaches the vault over **stdin** (`--password-stdin`), so it never appears
 in `ps` output, in shell history, or in a log line. `qa-auth.sh` prints exactly one line,
@@ -130,6 +159,11 @@ token is then in a command line — treat it exactly like a password.
 ## Rules for the report
 
 - No password, token, cookie value or state file ever goes into `qa-analyze/`.
+- **A recording can leak what the report does not.** `recordings/*.webm` shows the screen as it
+  was: a typed password is masked by the input, but a token in a URL, an API key on a settings
+  screen, or another customer's data on a shared staging environment is captured in full. Watch
+  what the scenario walks past, and delete or re-record a video that caught something the report
+  would never have printed.
 - Record the **account identity** (email or role) — that is legitimate QA evidence — and the
   vault profile name. Never the secret.
 - Before delivering, verify:

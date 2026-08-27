@@ -25,6 +25,9 @@ exploratory testing, cloud providers).
 
 ## The core loop, per user story
 
+0. **Open the scenario's recording** — `qa-browser record start US-<n>-<slug>.webm`
+   One video per scenario, never one for the run. Details and the context-reset trap in
+   "Recording per scenario" below.
 1. **Locate and read** — `qa-browser snapshot -i -c`
    Interactive elements only, compact: ~200-400 tokens instead of a DOM dump. It returns
    `@ref`s (`@e1`, `@e2`) **and** the rendered text, so it is also how you assert on exact
@@ -68,6 +71,71 @@ exploratory testing, cloud providers).
    ```
 7. **Verify the capture** — re-read the saved PNG with the Read tool. A redirect between the
    snapshot and the screenshot saves the wrong page with no error at all.
+8. **Close the recording** — `qa-browser record stop`, then `ls -l <report-dir>/recordings` to
+   confirm the file exists and is non-empty. An unstopped recording is never written.
+
+## Recording per scenario
+
+The run produces `recordings/US-1-login.webm`, `recordings/US-2-filtro.webm`, one file per
+scenario — **never a single video of the whole session**. A per-scenario file can be attached
+to that story's verdict; a whole-run file forces a reviewer to scrub for the ten seconds that
+matter and drags an unrelated failure into the evidence of a passing story.
+
+```
+qa-browser record start US-1-login.webm            # -> recordings/US-1-login.webm
+#  ... the scenario ...
+qa-browser record stop
+
+qa-browser record restart US-2-filtro-status.webm  # stop + start, no gap between scenarios
+```
+
+The wrapper anchors a bare filename in the run's `recordings/` and appends `.webm` when the
+extension is missing. agent-browser has no recordings-dir variable of its own, so a direct
+`agent-browser record start US-1.webm` would drop the file in the shell's cwd.
+
+### Recording needs `ffmpeg`, and says so late
+
+agent-browser encodes through `ffmpeg`. Without it:
+
+```
+$ qa-browser record start US-1-home.webm
+✓ Recording started: .../recordings/US-1-home.webm     # a lie, nothing is being written
+$ qa-browser record stop
+✗ ffmpeg not found or failed to execute. Install ffmpeg to enable recording.
+$ ls recordings/                                        # empty
+```
+
+`agent-browser doctor` does **not** cover it and will report `0 fail` on a machine where every
+recording is lost. The preflight `scripts/ensure-ffmpeg.sh` checks for it and installs it when
+it can (SKILL.md Prerequisites) — run it before the first `record start`, and still check the
+file on disk after every `record stop`.
+
+### `record start` opens a fresh context — plan for it
+
+`agent-browser record --help`: *"Creates a fresh browser context but preserves cookies and
+localStorage."* Cookies and localStorage survive; nothing else does. At every scenario boundary:
+
+| What happens | What you do |
+|---|---|
+| All `@ref`s from the previous context are dead | `snapshot -i -c` immediately after `record start`, always |
+| In-memory state is dropped — an SPA access token held only in JS is gone | Check the first snapshot is not the login screen. If it is, log in inside the recording; that is scenario setup, not a defect |
+| It navigates to the current URL, or to the one you pass | Start at the scenario's entry point: `record start US-3-cancelar.webm <URL>` |
+
+Because of the reset, **never batch across a `record start`**: the refs in the batch were
+resolved in the context that just went away.
+
+### What a recording is and is not evidence of
+
+The video shows *how* the UI behaved — the animation that never finished, the flash of an error
+toast, the double submit. It does not replace the other two:
+
+- **Network status proves the mutation** (`204` on delete, `201` on create).
+- **The screenshot is what a reader sees** without opening a player.
+- **The recording explains the sequence** when a verdict is contested.
+
+Cite it per story, by relative path. Never cite a file you have not confirmed on disk, and never
+imply a recording covers a scenario that was skipped or BLOCKED — those get none, and the report
+says so.
 
 ## Batching
 
@@ -135,7 +203,6 @@ events other frameworks listen to.
 | Accessibility audit (axe-core) | `qa-browser a11y --json` |
 | Core Web Vitals / hydration | `qa-browser vitals --json` |
 | Visual regression | `qa-browser diff screenshot --baseline` |
-| Record the run as video | `qa-browser record start <path>` … `record stop` |
 | Full traffic capture | `qa-browser network har start` … `har stop <path>.har` |
 | Responsive check | `qa-browser set viewport 390 844` |
 | Dark mode check | `qa-browser set media dark` |

@@ -91,12 +91,12 @@ Protocol for handling incoming code review feedback with technical rigor.
 - Fix items one at a time, test each
 
 ### `fullstack-pr-qa`
-Runs manual browser QA of any web project against any environment and writes a screenshot-backed report.
+Runs manual browser QA of any web project against any environment and writes a report backed by per-scenario screenshots and recordings.
 
 **Usage:** `/fullstack-pr-qa [projeto] [plano] [auth] [ambiente]`
 
 ```
-/fullstack-pr-qa ~/dev/minha-app ./docs/plano-checkout.md @minha-app-staging staging
+/fullstack-pr-qa ~/dev/minha-app ./docs/plano-checkout.md "" staging=https://staging.minha-app.com
 /fullstack-pr-qa ~/dev/minha-app pr:42 env:QA_USER,QA_PASS localhost
 ```
 
@@ -104,12 +104,30 @@ Runs manual browser QA of any web project against any environment and writes a s
 - Runs as `context: fork` with `background: false` — the coordinator passes the whole context through those four arguments, and the skill returns a self-contained verdict
 - Project-agnostic: everything stack-specific comes from the four arguments or the project's own `qa.config.json`
 - Drives a real Chrome through the [agent-browser](https://agent-browser.dev) CLI, in an isolated session per project + environment
-- Credentials always resolve to an encrypted agent-browser auth vault profile — never a file, a log, or the report
-- Captures accessibility snapshots, network status codes and screenshots as evidence for every user story
 - Writes the report to `<project-root>/qa-analyze/<slug>/qa-results.md`
 - Separates product defects (FAIL) from environment blockers (BLOCKED), so deploy lag never reads as a bug
 
-**Requires:** `agent-browser` on `PATH` (`brew install agent-browser` or `npm i -g agent-browser`, then `agent-browser install`).
+**Remote environments stop and ask for the URL.** A bare `staging`, `prod` or `producao` names
+no host, so the skill refuses to guess one and returns asking for the base URL — even when
+`qa.config.json` proposes one, since a stale config pointed at the wrong deployment is not a
+recoverable mistake on production. Address them as `<rotulo>=<url>`, which keeps the label (and
+therefore the vault profile and the browser session) stable across runs.
+
+**Credentials come from the vault, or the run stops.** Leave `$auth` empty and the skill looks
+up the `qa-<projeto>-<ambiente>` profile in the encrypted agent-browser vault. If it is missing,
+the run stops and asks for an existing profile or a user + password — and saves what it gets, so
+every later run of that project + environment finds it with no credentials in the invocation at
+all. It never falls back to running logged out.
+
+**Evidence is per scenario, never per session.** Each user story gets its own
+`recordings/US-<n>-<slug>.webm` alongside its screenshots and network status codes. A single
+video of the whole run is explicitly forbidden: it cannot be attached to one story's verdict and
+drags unrelated failures into the proof of a passing story.
+
+**Requires:** `agent-browser` on `PATH` (`brew install agent-browser` or `npm i -g agent-browser`,
+then `agent-browser install`), and `ffmpeg` for the recordings — the skill's
+`scripts/ensure-ffmpeg.sh` preflight installs it when it is missing and can do so without sudo,
+and degrades to screenshots plus network evidence when it cannot.
 
 ---
 
