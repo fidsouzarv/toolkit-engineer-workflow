@@ -43,10 +43,10 @@ Everything project-specific the skill needs, so a run reduces to four parameters
 | Key | Meaning |
 |-----|---------|
 | `reportDir` | Folder under the project root for reports. Default `qa-analyze`. |
-| `environments.<env>.baseUrl` | What `$4` resolves to. **Required** for any environment you want to address by label. |
+| `environments.<env>.baseUrl` | The URL **proposed** when the environment argument is that label. For a local environment it is used directly; for a remote one it is quoted back to the user for confirmation, never used unattended. |
 | `environments.<env>.start` / `cwd` / `readyText` | How to bring a local server up, from which subdirectory, and the line that means "ready". Only for local environments. |
 | `environments.<env>.env` | Inline env overrides for the start command. Never edit a committed `.env` instead. |
-| `environments.<env>.readOnly` | `true` refuses mutating stories without explicit per-mutation authorization. Always `true` for prod. |
+| `environments.<env>.readOnly` | `true` refuses mutating stories without explicit per-mutation authorization. Always `true` for prod — a confirmed URL grants reading, not writing. |
 | `login.*` | Form selectors and the post-login success marker, reused by the auth vault and by `wait`. |
 | `notes` | Free-text warnings the QA agent must read before interpreting results. |
 
@@ -67,6 +67,16 @@ files is the coordinator's decision. Recommend the stub in the report instead.
 4. Stop the server in Step 7, even when the run failed.
 
 ## Staging and prod
+
+**The base URL must have been confirmed by the user before you get here** (SKILL.md, Gate A). A
+label is not a host: `staging` is a different machine in every project, and `baseUrl` in
+`qa.config.json` is a *proposal* to put in front of the user, not an authorization to drive. The
+config file can be stale, and a QA run against the wrong deployment is at best wasted and at
+worst a write to someone else's production.
+
+Once confirmed, address the environment as `<rotulo>=<url>` (`staging=https://staging.app`):
+the label keeps the vault profile and the browser session stable across runs, while the URL is
+explicit every time. A bare URL also works but derives the label from the hostname.
 
 Nothing to start; the environment is whatever was last deployed. Two consequences that decide
 verdicts:
@@ -132,6 +142,14 @@ looks wrong is often the current day being partial. Read the project's own rules
 `--restore` can reload a cookie whose server-side session already expired: the app renders
 logged-in shell, then 401s on the first data call. Use `--restore-check-text` /
 `--restore-check-url`, or clear the state and log in fresh.
+
+### 9. A scenario recording that starts its own context
+
+`record start` opens a fresh browser context (cookies and localStorage survive, in-memory state
+does not). The first snapshot of a scenario can therefore land on the login screen even though
+the session was healthy a second earlier, and every `@ref` from the previous scenario is dead.
+Re-authenticate inside the recording and move on — it is the recorder's behaviour, **not** a
+session defect, and it must never be reported as one.
 
 ## Environment note vs product defect
 

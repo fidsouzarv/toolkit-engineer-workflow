@@ -6,12 +6,12 @@
 |---|---|
 | **Veredito** | `<PASS \| FAIL \| PARCIAL>` |
 | **Projeto** | `<nome>` — `<caminho absoluto>` |
-| **Ambiente** | `<localhost \| staging \| prod>` — `<base URL>` |
+| **Ambiente** | `<localhost \| staging \| prod>` — `<base URL>` (`<confirmada pelo usuário \| resolvida do qa.config.json>`) |
 | **Branch / commit** | `<branch>` @ `<sha curto>` |
 | **Plano de testes** | `<arquivo, PR #n, issue ou "inline">` |
 | **Conta usada** | `<e-mail ou papel>` (perfil de vault `<qa-projeto-ambiente>`) |
 | **Sessão do navegador** | `<agent-browser session id>` |
-| **Driver** | agent-browser `<versão>` |
+| **Driver** | agent-browser `<versão>` (gravação via ffmpeg `<versão>`) |
 | **Data da execução** | `<YYYY-MM-DD>` |
 
 <Uma ou duas frases com o desfecho. Diga explicitamente que as notas de ambiente estão em
@@ -40,9 +40,11 @@ original ao fim da execução.>
 1. **Passos:** <ações executadas, na ordem>
 2. **Esperado:** <comportamento + textos/rótulos exatos que devem aparecer>
 3. **Obtido:** <comportamento observado + status HTTP das chamadas envolvidas>
-4. **Resultado:** `<PASS \| FAIL \| BLOCKED>` — evidência: `screenshots/<arquivo>.png`
+4. **Resultado:** `<PASS \| FAIL \| BLOCKED>`
+5. **Evidência:** `screenshots/<arquivo>.png` · `recordings/US-1-<slug>.webm` · `<MÉTODO /rota → status>`
 
-<Repita o bloco para cada história. BLOCKED exige apontar qual nota de ambiente o bloqueou.>
+<Repita o bloco para cada história. BLOCKED exige apontar qual nota de ambiente o bloqueou, e
+não tem gravação — diga isso em vez de deixar o leitor procurar o arquivo.>
 
 ## Evidência de rede
 
@@ -69,8 +71,24 @@ o servidor local foi parado e se a sessão foi fechada persistindo o estado.>
 
 1. `screenshots/<arquivo>.png` — <o que mostra> (US-n)
 
+## Gravações
+
+Uma gravação por cenário — nunca um vídeo único da sessão inteira.
+
+| Cenário | Arquivo | Duração/tamanho | Observação |
+|---|---|---|---|
+| US-1 | `recordings/US-1-<slug>.webm` | `<mm:ss / KB>` | <o que o vídeo mostra além do screenshot> |
+
+<Histórias BLOCKED/puladas não têm gravação; liste-as aqui dizendo por quê.>
+
+<Se o preflight instalou o ffmpeg nesta execução, registre aqui — a execução alterou a máquina.
+Se o ffmpeg não pôde ser instalado, diga o motivo e que a evidência ficou em screenshots + rede.>
+
 ## Como reproduzir
 
 ```
-/fullstack-pr-qa projeto=<caminho> plano=<origem> auth=@<perfil> env=<ambiente>
+/fullstack-pr-qa projeto=<caminho> plano=<origem> auth=@<perfil> env=<rotulo>=<URL completa>
 ```
+
+Com o perfil `<qa-projeto-ambiente>` já salvo no vault, `auth=` pode ficar vazio — a skill
+encontra o perfil sozinha. Ambiente remoto sempre vai como `<rotulo>=<URL completa>`, nunca como rótulo sozinho.

@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
 # scaffold-qa.sh — bootstrap the QA output folder and the agent-browser session for a run.
 #
-# Creates <projeto>/qa-analyze/<slug>/screenshots/, seeds qa-results.md from the skill's
-# template, derives a STABLE agent-browser session id for the project+environment pair, and
-# writes <slug>/.qa-env so scripts/qa-browser.sh can re-apply that environment on every call
+# Creates <projeto>/qa-analyze/<slug>/{screenshots,recordings}/, seeds qa-results.md from the
+# skill's template, derives a STABLE agent-browser session id for the project+environment pair,
+# and writes <slug>/.qa-env so scripts/qa-browser.sh can re-apply that environment on every call
 # (the agent's Bash tool does not keep env vars between calls).
+#
+# recordings/ holds ONE WebM per test scenario, never one video for the whole run — see
+# references/agent-browser-playbook.md.
 #
 # Usage: scaffold-qa.sh <projeto> "<titulo>" [ambiente] [base-url]
 #   $1  project: absolute path, ~-path, relative path, or a bare name looked up under
 #       ./<name> then ~/dev/<name>. ALL output is written under this directory.
 #   $2  run title (slugified into the folder name).
-#   $3  environment label: localhost | staging | prod | <free label>   (default: localhost)
-#   $4  base URL for that environment, e.g. http://localhost:3002      (default: empty)
+#   $3  environment: "<label>=<url>" (preferred: staging=https://staging.app), a bare URL, or a
+#       bare label (localhost | staging | prod | <free label>).       (default: localhost)
+#       The LABEL is what keeps the session id and the vault profile stable across runs, so
+#       prefer the "label=url" form for anything remote.
+#   $4  base URL, when not embedded in $3, e.g. http://localhost:3002 (default: empty)
+#       REQUIRED for any remote environment: the skill must never invent a staging/prod host.
 #
 # Read-only with respect to the application: it only creates the qa-analyze/ tree.
 #
 # Stdout (KEY=VALUE, one per line):
-#   PROJECT_ROOT SLUG ENV BASE_URL REPORT_DIR REPORT SHOTS SESSION QA_ENV
+#   PROJECT_ROOT SLUG ENV BASE_URL REPORT_DIR REPORT SHOTS RECORDINGS SESSION QA_ENV
 # REPORT_DIR is the <report-dir> argument every qa-browser.sh call takes.
 set -euo pipefail
 
@@ -29,11 +36,64 @@ die() {
 
 raw_project="$1"
 raw_title="$2"
-env_label="${3:-localhost}"
+raw_env="${3:-localhost}"
 base_url="${4:-}"
+
+# --- split the environment argument into a stable LABEL and a base URL ----------------------
+# Accepted forms, in order:
+#   staging=https://staging.app   label + URL, the form Gate A asks the user to re-invoke with.
+#                                 Keeps the label (and therefore the vault profile and the
+#                                 session id) stable no matter which host is passed.
+#   https://staging.app           bare URL; the label is derived from the host.
+#   staging                       bare label; the URL must come from the next positional arg.
+parse_env_spec() {
+  local spec="$1" host
+  env_label=""
+  env_url=""
+  case "$spec" in
+    *=http://* | *=https://*)
+      env_label="${spec%%=*}"
+      env_url="${spec#*=}"
+      ;;
+    http://* | https://*)
+      env_url="$spec"
+      host="${spec#*://}"
+      host="${host%%/*}"
+      case "$host" in
+        localhost* | 127.0.0.1* | 0.0.0.0* | "[::1]"*) env_label="localhost" ;;
+        *) env_label="${host%%:*}" ;;
+      esac
+      ;;
+    *)
+      env_label="$spec"
+      ;;
+  esac
+}
+
+parse_env_spec "$raw_env"
+# An explicit arg 4 wins over a URL embedded in arg 3; otherwise the embedded one is the URL.
+[ -n "$base_url" ] || base_url="$env_url"
 
 [ -n "$raw_project" ] || die "project (arg 1) is empty; expected a path or a project name"
 [ -n "$raw_title" ] || die "title (arg 2) is empty; expected the run title"
+
+# A remote environment must arrive with its base URL already resolved and confirmed. Labels
+# like staging/prod name no host on their own, and guessing one is how a QA run ends up
+# driving the wrong deployment. See SKILL.md Step 0.
+case "$(printf '%s' "$env_label" | tr '[:upper:]' '[:lower:]')" in
+  localhost | local | dev | development)
+    ;;
+  *)
+    if [ -z "$base_url" ]; then
+      die "environment '$env_label' is remote but no base URL was given as arg 4 — ask the user for the full https:// URL; never infer a host from the label"
+    fi
+    ;;
+esac
+
+case "$base_url" in
+  "" | http://* | https://*) ;;
+  *) die "base URL (arg 4) must start with http:// or https://, got '$base_url'" ;;
+esac
 
 # --- resolve the project directory --------------------------------------------------------
 expanded="${raw_project/#\~/$HOME}"
@@ -64,7 +124,8 @@ project_slug="$(slugify "$(basename "$project_root")")"
 # --- create the report tree ---------------------------------------------------------------
 out_dir="$project_root/qa-analyze/$slug"
 shots_dir="$out_dir/screenshots"
-mkdir -p "$shots_dir"
+recordings_dir="$out_dir/recordings"
+mkdir -p "$shots_dir" "$recordings_dir"
 
 skill_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 template="$skill_dir/assets/qa-results.template.md"
@@ -96,6 +157,7 @@ qa_env="$out_dir/.qa-env"
   echo "AGENT_BROWSER_SESSION=$session"
   echo "AGENT_BROWSER_RESTORE=$session"
   echo "AGENT_BROWSER_SCREENSHOT_DIR=$shots_dir"
+  echo "QA_RECORDINGS_DIR=$recordings_dir"
   echo "QA_BASE_URL=$base_url"
   echo "QA_ENV=$env_label"
   echo "QA_PROJECT_ROOT=$project_root"
@@ -108,5 +170,6 @@ echo "BASE_URL=$base_url"
 echo "REPORT_DIR=$out_dir"
 echo "REPORT=$report"
 echo "SHOTS=$shots_dir"
+echo "RECORDINGS=$recordings_dir"
 echo "SESSION=$session"
 echo "QA_ENV=$qa_env"
