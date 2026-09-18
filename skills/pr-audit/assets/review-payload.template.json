@@ -1,0 +1,11 @@
+{
+  "event": "COMMENT",
+  "comments": [
+    {
+      "path": "{path/relativo/do/arquivo.ext}",
+      "line": 0,
+      "side": "RIGHT",
+      "body": "**{Tipo curto}:** {problema em 1-2 frases concretas}\n\n{sugestao com snippet, ou pergunta especifica para o autor}"
+    }
+  ]
+}
