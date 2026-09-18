@@ -7,8 +7,8 @@ command below is run through the wrapper so it lands in the run's session:
 bash <skill-dir>/scripts/qa-browser.sh <report-dir> <args...>
 ```
 
-`<skill-dir>` is this skill's own directory — SKILL.md carries it as the already-expanded
-`${CLAUDE_SKILL_DIR}` value, so take it from there rather than hardcoding a path.
+`<skill-dir>` is the directory containing the loaded `SKILL.md`. Resolve it from the skill path
+provided by the host rather than hardcoding a Claude, Codex, or repository location.
 `<report-dir>` is the `REPORT_DIR` that `scaffold-qa.sh` printed. Shortened to
 `qa-browser <args>` in the rest of this document.
 
@@ -69,7 +69,7 @@ exploratory testing, cloud providers).
    qa-browser screenshot --full 04-lista-completa.png
    qa-browser screenshot --annotate 05-mapa-refs.png
    ```
-7. **Verify the capture** — re-read the saved PNG with the Read tool. A redirect between the
+7. **Verify the capture** — inspect the saved PNG with the host's image-reading capability. A redirect between the
    snapshot and the screenshot saves the wrong page with no error at all.
 8. **Close the recording** — `qa-browser record stop`, then `ls -l <report-dir>/recordings` to
    confirm the file exists and is non-empty. An unstopped recording is never written.
