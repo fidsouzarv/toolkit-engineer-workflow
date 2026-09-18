@@ -19,7 +19,7 @@ agent-browser session id --scope git-root --prefix qa-<projeto>-<ambiente>
 `--scope git-root` hashes the repository root, so a second worktree of the same repo gets its
 own session (and `--scope cwd` is the fallback when the project is not a git repo). The name
 is written to `<report-dir>/.qa-env` along with the restore key, the screenshot dir and the
-base URL, because **the agent's Bash tool starts a fresh shell for every call** — exported
+base URL, because **agent hosts may start a fresh shell process for every call** — exported
 variables do not survive. That is the whole reason `qa-browser.sh` exists: it re-sources
 `.qa-env` on each invocation. A bare `agent-browser` call would run in the `default` session,
 a different browser that is not logged in.

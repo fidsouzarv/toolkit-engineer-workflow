@@ -52,8 +52,8 @@ Everything project-specific the skill needs, so a run reduces to four parameters
 
 Absent the file: detect what you can (package manager, dev script, framework default port),
 run with those inferences, and **list every one of them in the report**. Do not write the file
-— a QA run executes as a forked subagent with no user to confirm with, and creating project
-files is the coordinator's decision. Recommend the stub in the report instead.
+during a QA run; creating project files is outside the run's scope. Recommend the stub in the
+report instead.
 
 ## Bringing a local environment up
 

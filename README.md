@@ -1,6 +1,6 @@
 # Toolkit Engineer Workflow
 
-A personal toolkit for AI-assisted software engineering using [Claude Code](https://claude.ai/code). It provides a structured workflow — from requirements to delivery — through slash commands, skills, agents, and document templates.
+A personal toolkit for AI-assisted software engineering using Claude Code and Codex. It provides a structured workflow — from requirements to delivery — through slash commands, skills, agents, and document templates.
 
 ---
 
@@ -60,7 +60,8 @@ Creates a detailed task list from a PRD + Tech Spec pair.
 
 ## Skills
 
-Place directories from `skills/` in `~/.claude/skills/` to use them as skills in Claude Code.
+Install directories from `skills/` globally to use them from any project. Claude Code reads
+`~/.claude/skills/`; Codex reads `~/.agents/skills/` and follows symbolic links.
 
 ### `execute-task-personal`
 Executes a specific task from the task list, automatically parallelizing independent subtasks via sub-agents.
@@ -93,16 +94,18 @@ Protocol for handling incoming code review feedback with technical rigor.
 ### `fullstack-pr-qa`
 Runs manual browser QA of any web project against any environment and writes a report backed by per-scenario screenshots and recordings.
 
-**Usage:** `/fullstack-pr-qa [projeto] [plano] [auth] [ambiente]`
+**Usage:** `/fullstack-pr-qa [project] [plan|auto] [auth|auto] <environment>` in Claude Code,
+or `$fullstack-pr-qa` with the same inputs in Codex.
 
 ```
-/fullstack-pr-qa ~/dev/minha-app ./docs/plano-checkout.md "" staging=https://staging.minha-app.com
-/fullstack-pr-qa ~/dev/minha-app pr:42 env:QA_USER,QA_PASS localhost
+/fullstack-pr-qa ~/dev/minha-app ./docs/plano-checkout.md auto staging=https://staging.minha-app.com
+/fullstack-pr-qa ~/dev/minha-app auto auto localhost
 ```
 
-- Four named positional arguments, declared in frontmatter and substituted into the skill body as `$projeto`, `$plano`, `$auth` and `$ambiente`; quote any value containing spaces
-- Runs as `context: fork` with `background: false` — the coordinator passes the whole context through those four arguments, and the skill returns a self-contained verdict
-- Project-agnostic: everything stack-specific comes from the four arguments or the project's own `qa.config.json`
+- Project defaults to the current Git root; `auto` derives scenarios from the current PR or diff
+- Environment is always explicit; auth defaults to the agent-browser vault
+- Works interactively or in an isolated worker/fork without changing its safety gates
+- Project-agnostic: stack-specific behavior comes from the request, source tree, and optional `qa.config.json`
 - Drives a real Chrome through the [agent-browser](https://agent-browser.dev) CLI, in an isolated session per project + environment
 - Writes the report to `<project-root>/qa-analyze/<slug>/qa-results.md`
 - Separates product defects (FAIL) from environment blockers (BLOCKED), so deploy lag never reads as a bug
@@ -113,7 +116,7 @@ no host, so the skill refuses to guess one and returns asking for the base URL �
 recoverable mistake on production. Address them as `<rotulo>=<url>`, which keeps the label (and
 therefore the vault profile and the browser session) stable across runs.
 
-**Credentials come from the vault, or the run stops.** Leave `$auth` empty and the skill looks
+**Credentials come from the vault, or the run stops.** Leave auth empty or pass `auto` and the skill looks
 up the `qa-<projeto>-<ambiente>` profile in the encrypted agent-browser vault. If it is missing,
 the run stops and asks for an existing profile or a user + password — and saves what it gets, so
 every later run of that project + environment finds it with no credentials in the invocation at
@@ -161,14 +164,21 @@ Place files from `templates/` in `~/.claude/templates/`. Commands reference thes
 
 ## Installation
 
-Copy each folder to the corresponding Claude Code config directory:
+Install commands, agents and templates for Claude Code, then expose `fullstack-pr-qa` to Codex
+without creating a second physical copy:
 
 ```bash
 cp -r agents/*    ~/.claude/agents/
 cp -r commands/*  ~/.claude/commands/
 cp -r skills/*    ~/.claude/skills/
 cp -r templates/* ~/.claude/templates/
+
+mkdir -p ~/.agents/skills
+ln -sfn ~/.claude/skills/fullstack-pr-qa ~/.agents/skills/fullstack-pr-qa
 ```
+
+`~/.agents/skills` is Codex's global user scope. Keeping the Codex entry as a symbolic link avoids
+two copies drifting while leaving Claude Code's standard skill layout intact.
 
 ---
 

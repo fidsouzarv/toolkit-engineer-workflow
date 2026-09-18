@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # qa-browser.sh — run agent-browser inside a QA run's session, screenshot dir and base URL.
 #
-# WHY THIS EXISTS: the agent's Bash tool starts a fresh shell per call, so `export
+# WHY THIS EXISTS: agent hosts may start a fresh shell process per call, so `export
 # AGENT_BROWSER_SESSION=...` never survives to the next command. A bare `agent-browser` call
 # would silently land in the "default" session — a different browser, not logged in. This
 # wrapper re-applies the run's .qa-env (written by scaffold-qa.sh) on every invocation.
